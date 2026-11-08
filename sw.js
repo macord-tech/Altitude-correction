@@ -1,6 +1,6 @@
 // Caches the app on first visit so it opens with no connection.
-// To push an update to devices, change CACHE (for example to 'altcorr-v2') and upload the files again.
-const CACHE = 'altcorr-v1';
+// To push an update to devices, change CACHE (for example to 'altcorr-v4') and upload the files again.
+const CACHE = 'altcorr-v3';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', function (e) {

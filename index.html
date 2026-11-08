@@ -187,6 +187,27 @@
   .notes { margin: 18px 0 0; padding: 14px 0 0; border-top: 1px solid var(--rule); display: grid; gap: 8px; color: var(--muted); font-size: 15px; max-width: 70ch; list-style: none; }
   .foot { color: var(--muted); font-size: 14px; max-width: 80ch; margin: 0; }
 
+  .seg button { line-height: 1.15; padding: 6px 8px; }
+  table { min-width: 640px; }
+  th.mid, td.mid { text-align: center; }
+  .chk { width: 26px; height: 26px; accent-color: var(--accent); }
+  .cell-in.name { min-width: 150px; }
+  .other { display: block; margin-top: 2px; font-size: 12px; }
+  .other .ol { display: inline; margin-left: 10px; }
+  .other .ol:first-child { margin-left: 0; }
+  @media (max-width: 640px) {
+    table { min-width: 0; }
+    thead { display: none; }
+    table, tbody, tr, td { display: block; }
+    tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; padding: 14px 0; border-bottom: 1px solid var(--rule); }
+    td, td.num, td.mid { border: 0; padding: 0; min-width: 0; text-align: left; }
+    td::before { content: attr(data-label); display: block; margin-bottom: 4px; font-family: var(--f-display); font-weight: 500; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    td.name-cell, td.del-cell { grid-column: 1 / -1; }
+    td.del-cell::before { content: none; }
+    .cell-in.alt { text-align: left; }
+    .cell-in.name { min-width: 0; }
+  }
+
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
   /* standalone page reset */
   :root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
@@ -199,9 +220,10 @@
 
 <div class="wrap">
   <header>
-    <div class="eyebrow">Transport Canada AC 500-020 · Issue 04</div>
+    <div class="eyebrow">CAP GEN · Transport Canada AC 500-020 Issue 04</div>
     <h1>Temperature altitude correction</h1>
-    <p class="lede">Adds the cold-temperature correction to published minimum IFR altitudes, using the simplified method (§4.7) and the accurate method (§4.8).</p>
+    <p class="lede">Adds the cold-temperature correction to published minimum IFR altitudes, using the CAP GEN altitude correction chart or the two AC 500-020 methods (§4.7 and §4.8).</p>
+    <span class="pill" id="offlineStatus" style="justify-self:start">Checking offline storage…</span>
   </header>
 
   <div class="grid">
@@ -247,8 +269,8 @@
         <div><dt>Deviation</dt><dd id="r-dev">—</dd></div>
       </dl>
 
-      <div class="field">
-        <span class="lbl" id="l-thr">Apply correction when</span>
+      <div class="field" id="thrField">
+        <span class="lbl" id="l-thr">Apply AC correction when</span>
         <div class="seg" role="group" aria-labelledby="l-thr" data-seg="thr">
           <button type="button" data-v="isa">Below ISA</button>
           <button type="button" data-v="zero">Below 0 °C</button>
@@ -269,14 +291,15 @@
     <section class="panel" aria-labelledby="h-alt">
       <div class="panel-head">
         <h2 id="h-alt">Published altitudes</h2>
-        <span class="tag" id="exampleTag">Example values</span>
+        <span class="tag" id="exampleTag">CAP GEN example values</span>
       </div>
 
       <div class="field" style="margin-bottom:0">
         <span class="lbl" id="l-method">Method</span>
         <div class="seg" role="group" aria-labelledby="l-method" data-seg="method">
-          <button type="button" data-v="accurate">Accurate §4.8</button>
-          <button type="button" data-v="simplified">Simplified §4.7</button>
+          <button type="button" data-v="capgen">CAP GEN chart</button>
+          <button type="button" data-v="accurate">AC accurate §4.8</button>
+          <button type="button" data-v="simplified">AC simplified §4.7</button>
         </div>
       </div>
 
@@ -288,9 +311,9 @@
             <tr>
               <th>Fix or step</th>
               <th class="num">Published <span data-unit="alt"></span></th>
+              <th class="mid" title="An MDA or DA rounds up to the next 10 ft. Any other altitude rounds up to the next 100 ft.">MDA/DA</th>
               <th class="num">Add</th>
               <th class="num">Corrected</th>
-              <th class="num" id="th-other">Other method</th>
               <th><span class="sr" style="position:absolute;left:-9999px">Remove</span></th>
             </tr>
           </thead>
@@ -304,14 +327,15 @@
       <div class="warn" id="warn" aria-live="polite"></div>
 
       <ul class="notes">
-        <li>Add the correction to the published minimum IFR altitude. Do not add it to an altitude assigned by ATC (§4.4).</li>
+        <li>Add the correction to the published minimum IFR altitude. Do not add it to an altitude assigned by ATC.</li>
         <li>Published altitudes are entered as MSL. The correction is worked out on the height above the altimeter setting source, which is the aerodrome unless you set another elevation.</li>
-        <li>Accurate is the iterative method and is valid to 36 000 ft. Simplified is within 5% of it for aerodrome elevations up to 10 000 ft and heights up to 5 000 ft above the aerodrome. Aerodrome pressure height is taken as the aerodrome elevation.</li>
+        <li>CAP GEN chart: the correction is interpolated between the chart's figures, in height and in temperature. The corrected altitude rounds up to the next 10 ft for an MDA/DA and to the next 100 ft for any other altitude. Above 5 000 ft the chart's 5 000 ft figure is used, plus the extra height at the rate between its 1 500 and 2 000 ft columns. The chart is in feet, so metres are converted.</li>
+        <li>The two AC 500-020 methods allow for the aerodrome elevation and the chart does not, so they give smaller corrections at high aerodromes. Accurate is valid to 36 000 ft. Simplified is within 5% of it for aerodromes up to 10 000 ft and heights up to 5 000 ft above them.</li>
       </ul>
     </section>
   </div>
 
-  <p class="foot">Planning aid built from AC 500-020 Issue 04, which is guidance for FMS designs. For operations, use the approach chart, CAP GEN and TP 14371.</p>
+  <p class="foot">Planning aid built from the CAP GEN altitude correction chart and AC 500-020 Issue 04, which is guidance for FMS designs. For operations, use the approach chart, CAP GEN and TP 14371.</p>
 </div>
 
 <script>
@@ -334,6 +358,63 @@ function accurateCorrection(Hft, tC, elevFt) {
   }
   return c;
 }
+
+// CAP GEN Altitude Correction Chart (feet). Rows are aerodrome temperature in °C,
+// columns are height above the elevation of the altimeter setting source.
+// The +10 °C row has no figures below 1000 ft.
+const CAP_H = [200, 300, 400, 500, 600, 700, 800, 900, 1000, 1500, 2000, 3000, 4000, 5000];
+const CAP_T = [10, 0, -10, -20, -30, -40, -50];
+const CAP = {
+  '10':  [null, null, null, null, null, null, null, null, 20, 30, 40, 60, 80, 100],
+  '0':   [20, 20, 30, 30, 40, 40, 50, 50, 60, 90, 120, 170, 230, 290],
+  '-10': [20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200, 290, 390, 490],
+  '-20': [30, 50, 60, 70, 90, 100, 120, 130, 140, 210, 280, 430, 570, 710],
+  '-30': [40, 60, 80, 100, 120, 130, 150, 170, 190, 280, 380, 570, 760, 950],
+  '-40': [50, 80, 100, 120, 150, 170, 190, 220, 240, 360, 480, 720, 970, 1210],
+  '-50': [60, 90, 120, 150, 180, 210, 240, 270, 300, 450, 600, 890, 1190, 1500]
+};
+function capRow(key, h) {
+  const a = CAP[key];
+  for (let i = 0; i < CAP_H.length; i++) {
+    if (h === CAP_H[i]) return a[i];
+    if (h < CAP_H[i]) {
+      const lo = a[i - 1], hi = a[i];
+      if (lo == null || hi == null) return null;
+      return lo + (hi - lo) * (h - CAP_H[i - 1]) / (CAP_H[i] - CAP_H[i - 1]);
+    }
+  }
+  return null;
+}
+// Chart value at one height (200 to 5000 ft) and temperature (-50 to +10 C): bilinear in height and temperature.
+function capAt(hh, t) {
+  let k = 0;
+  while (k < CAP_T.length - 2 && t < CAP_T[k + 1]) k++;
+  const tu = CAP_T[k], tl = CAP_T[k + 1];
+  const upper = capRow(String(tu), hh), lower = capRow(String(tl), hh);
+  if (upper === null) return t > 0 ? 0 : lower;
+  const w = (tu - t) / (tu - tl);
+  return upper + (lower - upper) * w;
+}
+// Returns { corr, flag }.
+// flag: 'warm' above +10 C, 'cold' below -50 C, 'low' under 200 ft (200 ft column used),
+// 'high' above 5000 ft: the 5000 ft figure (X) plus the extra height at the rate between the 1500 and 2000 ft columns (Y).
+function capgenCorrection(h, t) {
+  if (!(h > 0)) return { corr: 0, flag: '' };
+  if (t > 10) return { corr: 0, flag: 'warm' };
+  if (t < -50) return { corr: NaN, flag: 'cold' };
+  if (h > 5000) {
+    const x = capAt(5000, t);
+    const rate = (capAt(2000, t) - capAt(1500, t)) / 500;
+    return { corr: x + (h - 5000) * rate, flag: 'high' };
+  }
+  const hh = Math.max(h, 200);
+  return { corr: capAt(hh, t), flag: h < 200 ? 'low' : '' };
+}
+// Indicated altitude: an MDA/DA rounds up to the next 10 ft, any other altitude to the next 100 ft.
+function capgenIndicated(pubFt, corr, isMda) {
+  const step = isMda ? 10 : 100;
+  return Math.ceil((pubFt + corr) / step - 1e-9) * step;
+}
 // ---- calc:end
 
 const M = 0.3048;
@@ -342,10 +423,14 @@ const fromFt = (v, u) => u === 'm' ? v * M : v;
 const toC = (t, u) => u === 'F' ? (t - 32) * 5 / 9 : t;
 const fromC = (t, u) => u === 'F' ? t * 9 / 5 + 32 : t;
 
-const KEY = 'tempAltCorrection.v1';
+const KEY = 'tempAltCorrection.v2';
 const defaults = {
-  altU: 'ft', tU: 'C', elev: '1000', temp: '-20', thr: 'isa', hss: '', method: 'accurate',
-  rows: [{ n: 'FAF', a: '3500' }, { n: 'Step-down fix', a: '2600' }, { n: 'MDA', a: '1840' }],
+  altU: 'ft', tU: 'C', elev: '2262', temp: '-50', thr: 'isa', hss: '', method: 'capgen',
+  rows: [
+    { n: 'Procedure turn', a: '4000', m: false },
+    { n: 'FAF', a: '3300', m: false },
+    { n: 'MDA straight-in', a: '2840', m: true }
+  ],
   edited: false
 };
 let state = JSON.parse(JSON.stringify(defaults));
@@ -353,7 +438,8 @@ try {
   const s = JSON.parse(localStorage.getItem(KEY));
   if (s && typeof s === 'object' && Array.isArray(s.rows)) {
     state = Object.assign(state, s);
-    state.rows = state.rows.map(r => ({ n: String(r.n || ''), a: String(r.a || '') }));
+    state.rows = state.rows.map(r => ({ n: String(r.n || ''), a: String(r.a || ''), m: !!r.m }));
+    if (['capgen', 'accurate', 'simplified'].indexOf(state.method) < 0) state.method = 'capgen';
   }
 } catch (e) {}
 function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
@@ -365,7 +451,7 @@ const num = s => {
 };
 const MINUS = '−';
 const nf = new Intl.NumberFormat('en-CA', { maximumFractionDigits: 0 });
-const fmtInt = n => nf.format(Math.round(n)).replace('-', MINUS).replace(/ /g, ' ');
+const fmtInt = n => nf.format(Math.round(n) + 0).replace('-', MINUS).replace(/ /g, ' ');
 const fmtDec = (n, d) => (n < 0 ? MINUS : '') + Math.abs(n).toFixed(d);
 const fmtSigned = n => n > 0 ? '+' + fmtInt(n) : fmtInt(n);
 
@@ -425,25 +511,29 @@ function renderRows() {
   state.rows.forEach((r, i) => {
     const tr = document.createElement('tr');
     tr.innerHTML =
-      '<td><input class="cell-in name" data-i="' + i + '" data-k="n" type="text" autocomplete="off" aria-label="Name of altitude ' + (i + 1) + '" placeholder="Name"></td>' +
-      '<td class="num"><input class="cell-in alt" data-i="' + i + '" data-k="a" type="text" inputmode="decimal" autocomplete="off" aria-label="Published altitude ' + (i + 1) + '" placeholder="0"></td>' +
-      '<td class="num"><span class="corr" data-out="corr">—</span></td>' +
-      '<td class="num"><span class="final" data-out="final">—</span></td>' +
-      '<td class="num"><span class="other" data-out="other">—</span></td>' +
-      '<td><button type="button" class="del" data-del="' + i + '" aria-label="Remove altitude ' + (i + 1) + '">×</button></td>';
+      '<td class="name-cell" data-label="Fix or step"><input class="cell-in name" data-i="' + i + '" data-k="n" type="text" autocomplete="off" aria-label="Name of altitude ' + (i + 1) + '" placeholder="Name"></td>' +
+      '<td class="num" data-label="Published"><input class="cell-in alt" data-i="' + i + '" data-k="a" type="text" inputmode="decimal" autocomplete="off" aria-label="Published altitude ' + (i + 1) + '" placeholder="0"></td>' +
+      '<td class="mid" data-label="MDA/DA"><input class="chk" data-i="' + i + '" data-k="m" type="checkbox" aria-label="Altitude ' + (i + 1) + ' is an MDA or DA"></td>' +
+      '<td class="num" data-label="Add"><span class="corr" data-out="corr">—</span></td>' +
+      '<td class="num" data-label="Corrected"><span class="final" data-out="final">—</span><span class="other" data-out="other"></span></td>' +
+      '<td class="del-cell"><button type="button" class="del" data-del="' + i + '" aria-label="Remove altitude ' + (i + 1) + '">×</button></td>';
     tr.querySelector('[data-k="n"]').value = r.n;
     tr.querySelector('[data-k="a"]').value = r.a;
+    tr.querySelector('[data-k="m"]').checked = !!r.m;
     tb.appendChild(tr);
   });
   $('empty').hidden = state.rows.length > 0;
 }
-$('rows').addEventListener('input', e => {
+function rowEdit(e) {
   const t = e.target;
   if (t.dataset && t.dataset.i !== undefined) {
-    state.rows[+t.dataset.i][t.dataset.k] = t.value;
+    const r = state.rows[+t.dataset.i];
+    if (t.type === 'checkbox') r.m = t.checked; else r[t.dataset.k] = t.value;
     state.edited = true; update();
   }
-});
+}
+$('rows').addEventListener('input', rowEdit);
+$('rows').addEventListener('change', rowEdit);
 $('rows').addEventListener('click', e => {
   const b = e.target.closest('[data-del]');
   if (!b) return;
@@ -451,20 +541,37 @@ $('rows').addEventListener('click', e => {
   state.edited = true; renderRows(); update();
 });
 $('addRow').addEventListener('click', () => {
-  state.rows.push({ n: '', a: '' });
+  state.rows.push({ n: '', a: '', m: false });
   state.edited = true; renderRows(); update();
   const ins = $('rows').querySelectorAll('[data-k="n"]');
   if (ins.length) ins[ins.length - 1].focus();
 });
 
+function rowResults(r, ctx) {
+  const aIn = num(r.a);
+  if (aIn === null) return null;
+  const aFt = toFt(aIn, ctx.altU);
+  const H = aFt - ctx.hssFt;
+  const out = { aIn: aIn, aFt: aFt, H: H, flags: [] };
+  if (H <= 0) { out.zero = true; return out; }
+  const cap = capgenCorrection(H, ctx.tC);
+  out.cap = cap.corr;
+  if (cap.flag) out.flags.push(cap.flag);
+  out.sim = ctx.below ? simplifiedCorrection(H, ctx.tC, ctx.elevFt, ctx.hssFt) : 0;
+  out.acc = ctx.below ? accurateCorrection(H, ctx.tC, ctx.elevFt) : 0;
+  return out;
+}
+
 function update() {
   const warns = new Set();
+  const m = state.method;
   const elevIn = num(state.elev), tIn = num(state.temp);
   const pill = $('pill');
   $('exampleTag').hidden = !!state.edited;
+  $('thrField').hidden = m === 'capgen';
 
   const outs = Array.from($('rows').querySelectorAll('tr'));
-  const clearRows = () => outs.forEach(tr => tr.querySelectorAll('[data-out]').forEach(s => s.textContent = '—'));
+  const clearRows = () => outs.forEach(tr => tr.querySelectorAll('[data-out]').forEach(s => s.textContent = s.dataset.out === 'other' ? '' : '—'));
 
   if (elevIn === null || tIn === null) {
     $('r-entered').textContent = tIn === null ? '—' : fmtDec(tIn, 1).replace(/\.0$/, '') + ' °' + state.tU;
@@ -487,42 +594,62 @@ function update() {
   const devDisp = state.tU === 'F' ? devC * 9 / 5 : devC;
   $('r-dev').textContent = (devDisp > 0 ? '+' : '') + dispT(devDisp) + '°';
 
-  const where = state.thr === 'isa' ? 'ISA' : '0 °C';
-  if (below) { pill.className = 'pill on'; pill.textContent = 'Correction applied · temperature is below ' + where; }
-  else { pill.className = 'pill off'; pill.textContent = 'No correction · temperature is not below ' + where; }
+  if (m === 'capgen') {
+    if (tC > 10) { pill.className = 'pill off'; pill.textContent = 'No correction · temperature is above +10 °C'; }
+    else if (tC < -50) { pill.className = 'pill off'; pill.textContent = 'Colder than the CAP GEN chart (−50 °C)'; }
+    else if (tC > 0) { pill.className = 'pill on'; pill.textContent = 'CAP GEN chart · above 0 °C it applies from 1 000 ft above the source'; }
+    else { pill.className = 'pill on'; pill.textContent = 'CAP GEN chart · correction applied'; }
+  } else {
+    const where = state.thr === 'isa' ? 'ISA' : '0 °C';
+    if (below) { pill.className = 'pill on'; pill.textContent = 'Correction applied · temperature is below ' + where; }
+    else { pill.className = 'pill off'; pill.textContent = 'No correction · temperature is not below ' + where; }
+  }
 
-  const acc = state.method === 'accurate';
-  $('th-other').textContent = acc ? 'Simplified' : 'Accurate';
+  const ctx = { elevFt: elevFt, hssFt: hssFt, tC: tC, below: below, altU: state.altU };
+  const sel = m === 'capgen' ? 'cap' : m === 'accurate' ? 'acc' : 'sim';
+  const names = { cap: 'CAP GEN', acc: '§4.8', sim: '§4.7' };
 
   outs.forEach((tr, i) => {
     const r = state.rows[i];
-    const set = (k, v) => tr.querySelector('[data-out="' + k + '"]').textContent = v;
-    const aIn = num(r.a);
-    if (aIn === null) { set('corr', '—'); set('final', '—'); set('other', '—'); return; }
-    const aFt = toFt(aIn, state.altU);
-    const H = aFt - hssFt;
-    if (H <= 0) {
-      set('corr', '0'); set('final', fmtInt(aIn)); set('other', '—');
+    const set = (k, v) => { tr.querySelector('[data-out="' + k + '"]').textContent = v; };
+    const setOther = h => { tr.querySelector('[data-out="other"]').innerHTML = h; };
+    const res = rowResults(r, ctx);
+    if (res === null) { set('corr', '—'); set('final', '—'); setOther(''); return; }
+    if (res.zero) {
+      set('corr', '0'); set('final', fmtInt(res.aIn)); setOther('');
       warns.add('An altitude is at or below the altimeter setting source elevation, so no correction is added to it.');
       return;
     }
-    if (!below) { set('corr', '0'); set('final', fmtInt(aIn)); set('other', '0'); }
-    else {
-      const s = simplifiedCorrection(H, tC, elevFt, hssFt);
-      const c = accurateCorrection(H, tC, elevFt);
-      const chosen = acc ? c : s, other = acc ? s : c;
-      if (!Number.isFinite(chosen)) {
-        set('corr', '—'); set('final', '—'); set('other', '—');
+    const corrFt = res[sel];
+    const others = ['cap', 'acc', 'sim'].filter(k => k !== sel).map(k => {
+      const v = res[k];
+      return '<span class="ol">' + names[k] + ' ' + (Number.isFinite(v) ? fmtSigned(Math.round(fromFt(v, state.altU))) : '—') + '</span>';
+    }).join('');
+    setOther(others);
+
+    if (!Number.isFinite(corrFt)) {
+      set('corr', '—'); set('final', '—');
+      if (m === 'capgen') {
+        if (res.flags.indexOf('cold') >= 0) warns.add('Colder than −50 °C, the coldest temperature on the CAP GEN chart. Use the accurate method instead.');
+      } else {
         warns.add('The accurate method cannot be solved for an altitude this high. Check the values.');
-        return;
       }
-      const corrD = Math.round(fromFt(chosen, state.altU));
-      set('corr', fmtSigned(corrD));
-      set('final', fmtInt(aIn + corrD));
-      set('other', Number.isFinite(other) ? fmtSigned(Math.round(fromFt(other, state.altU))) : '—');
+      return;
     }
-    if (acc && aFt > 36000) warns.add('The accurate method is valid to 36 000 ft (11 000 m).');
-    if (!acc && (elevFt > 10000 || H > 5000)) warns.add('Outside the range where the simplified method is within 5% of the accurate method (aerodrome up to 10 000 ft, height up to 5 000 ft above it). Use the accurate method.');
+    const add = Math.round(fromFt(corrFt, state.altU));
+    set('corr', fmtSigned(add));
+    let fin;
+    if (m === 'capgen') {
+      const indFt = capgenIndicated(res.aFt, corrFt, !!r.m);
+      fin = state.altU === 'm' ? Math.ceil(fromFt(indFt, 'm') - 1e-9) : indFt;
+      if (res.flags.indexOf('low') >= 0) warns.add('An altitude is under 200 ft above the source. The 200 ft column of the chart is used.');
+      if (res.flags.indexOf('high') >= 0) warns.add('An altitude is more than 5 000 ft above the source. The chart\'s 5 000 ft figure is used, plus the extra height at the rate between its 1 500 and 2 000 ft columns.');
+    } else {
+      fin = res.aIn + add;
+      if (m === 'accurate' && res.aFt > 36000) warns.add('The accurate method is valid to 36 000 ft (11 000 m).');
+      if (m === 'simplified' && below && (elevFt > 10000 || res.H > 5000)) warns.add('Outside the range where the simplified method is within 5% of the accurate method (aerodrome up to 10 000 ft, height up to 5 000 ft above it). Use the accurate method.');
+    }
+    set('final', fmtInt(fin));
   });
 
   $('warn').innerHTML = '';
@@ -533,11 +660,36 @@ function update() {
 syncSegs(); loadFields(); update();
 </script>
 <script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function () {
-    navigator.serviceWorker.register('sw.js').catch(function () {});
-  });
-}
+(function () {
+  var el = document.getElementById('offlineStatus');
+  var CACHE = 'altcorr-v3', NEED = 6, done = false;
+  function set(cls, txt) { el.className = 'pill ' + cls; el.textContent = txt; }
+  function fail(txt) { if (!done) set('off', txt); }
+
+  if (!('serviceWorker' in navigator)) {
+    set('off', 'This view cannot save the app. Open the site in Safari and add it from there.');
+    return;
+  }
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+    set('off', 'Offline storage needs a secure (https) address.');
+    return;
+  }
+
+  function check(tries) {
+    caches.open(CACHE).then(function (c) { return c.keys(); }).then(function (keys) {
+      if (keys.length >= NEED) { done = true; set('on', 'Ready for offline use'); }
+      else if (tries > 0) { setTimeout(function () { check(tries - 1); }, 1000); }
+      else { fail('Not saved yet (' + keys.length + ' of ' + NEED + ' files). Reopen the app while online.'); }
+    }).catch(function () { fail('Offline storage is blocked on this iPad.'); });
+  }
+
+  setTimeout(function () { fail('Not saved yet. Keep the connection on and reopen the app.'); }, 12000);
+
+  navigator.serviceWorker.register('sw.js')
+    .then(function () { return navigator.serviceWorker.ready; })
+    .then(function () { check(8); })
+    .catch(function (err) { fail('Offline storage failed: ' + (err && err.name ? err.name : 'error')); });
+})();
 </script>
 </body>
 </html>
