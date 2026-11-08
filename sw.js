@@ -1,10 +1,12 @@
-// Caches the app on first visit so it opens with no connection.
-// To push an update to devices, change CACHE (for example to 'altcorr-v4') and upload the files again.
-const CACHE = 'altcorr-v3';
+// Saves the app so it opens with no connection.
+// When online it always fetches the newest files first; the saved copy is used only when there is no connection.
+const CACHE = 'altcorr-v4';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', function (e) {
-  e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));
+  e.waitUntil(caches.open(CACHE).then(function (c) {
+    return Promise.all(FILES.map(function (f) { return c.add(new Request(f, { cache: 'reload' })); }));
+  }).then(function () { return self.skipWaiting(); }));
 });
 
 self.addEventListener('activate', function (e) {
@@ -16,10 +18,17 @@ self.addEventListener('activate', function (e) {
 });
 
 self.addEventListener('fetch', function (e) {
-  if (e.request.method !== 'GET') return;
+  const req = e.request;
+  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
   e.respondWith(
-    caches.match(e.request).then(function (hit) {
-      return hit || fetch(e.request).catch(function () { return caches.match('index.html'); });
+    new Promise(function (resolve, reject) {
+      const t = setTimeout(reject, 3000);
+      fetch(req, { cache: 'no-cache' }).then(function (res) { clearTimeout(t); resolve(res); }, function (err) { clearTimeout(t); reject(err); });
+    }).then(function (res) {
+      if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then(function (c) { c.put(req, copy); }); }
+      return res;
+    }).catch(function () {
+      return caches.match(req).then(function (hit) { return hit || caches.match('index.html'); });
     })
   );
 });

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Temperature Altitude Correction</title>
+<title>Cold Weather Altitude Correction</title>
 <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -193,8 +193,13 @@
   .chk { width: 26px; height: 26px; accent-color: var(--accent); }
   .cell-in.name { min-width: 150px; }
   .other { display: block; margin-top: 2px; font-size: 12px; }
-  .other .ol { display: inline; margin-left: 10px; }
-  .other .ol:first-child { margin-left: 0; }
+  .other .ol { display: block; }
+  details.notes-box { margin-top: 18px; border-top: 1px solid var(--rule); padding-top: 12px; }
+  details.notes-box summary { cursor: pointer; font-family: var(--f-display); font-weight: 500; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 6px 0; list-style: none; }
+  details.notes-box summary::-webkit-details-marker { display: none; }
+  details.notes-box summary::after { content: "  +"; }
+  details.notes-box[open] summary::after { content: "  −"; }
+  details.notes-box .notes { margin-top: 8px; border-top: 0; padding-top: 0; }
   @media (max-width: 640px) {
     table { min-width: 0; }
     thead { display: none; }
@@ -220,9 +225,7 @@
 
 <div class="wrap">
   <header>
-    <div class="eyebrow">CAP GEN · Transport Canada AC 500-020 Issue 04</div>
-    <h1>Temperature altitude correction</h1>
-    <p class="lede">Adds the cold-temperature correction to published minimum IFR altitudes, using the CAP GEN altitude correction chart or the two AC 500-020 methods (§4.7 and §4.8).</p>
+    <h1>Cold Weather Altitude Correction</h1>
     <span class="pill" id="offlineStatus" style="justify-self:start">Checking offline storage…</span>
   </header>
 
@@ -270,7 +273,7 @@
       </dl>
 
       <div class="field" id="thrField">
-        <span class="lbl" id="l-thr">Apply AC correction when</span>
+        <span class="lbl" id="l-thr">Apply TC correction when</span>
         <div class="seg" role="group" aria-labelledby="l-thr" data-seg="thr">
           <button type="button" data-v="isa">Below ISA</button>
           <button type="button" data-v="zero">Below 0 °C</button>
@@ -291,15 +294,14 @@
     <section class="panel" aria-labelledby="h-alt">
       <div class="panel-head">
         <h2 id="h-alt">Published altitudes</h2>
-        <span class="tag" id="exampleTag">CAP GEN example values</span>
       </div>
 
       <div class="field" style="margin-bottom:0">
         <span class="lbl" id="l-method">Method</span>
         <div class="seg" role="group" aria-labelledby="l-method" data-seg="method">
-          <button type="button" data-v="capgen">CAP GEN chart</button>
-          <button type="button" data-v="accurate">AC accurate §4.8</button>
-          <button type="button" data-v="simplified">AC simplified §4.7</button>
+          <button type="button" data-v="capgen">CAP GEN</button>
+          <button type="button" data-v="accurate">TC Accurate</button>
+          <button type="button" data-v="simplified">TC Simplified</button>
         </div>
       </div>
 
@@ -326,12 +328,14 @@
 
       <div class="warn" id="warn" aria-live="polite"></div>
 
+      <details class="notes-box"><summary>Notes</summary>
       <ul class="notes">
         <li>Add the correction to the published minimum IFR altitude. Do not add it to an altitude assigned by ATC.</li>
         <li>Published altitudes are entered as MSL. The correction is worked out on the height above the altimeter setting source, which is the aerodrome unless you set another elevation.</li>
-        <li>CAP GEN chart: the correction is interpolated between the chart's figures, in height and in temperature. The corrected altitude rounds up to the next 10 ft for an MDA/DA and to the next 100 ft for any other altitude. Above 5 000 ft the chart's 5 000 ft figure is used, plus the extra height at the rate between its 1 500 and 2 000 ft columns. The chart is in feet, so metres are converted.</li>
-        <li>The two AC 500-020 methods allow for the aerodrome elevation and the chart does not, so they give smaller corrections at high aerodromes. Accurate is valid to 36 000 ft. Simplified is within 5% of it for aerodromes up to 10 000 ft and heights up to 5 000 ft above them.</li>
+        <li>CAP GEN: the correction is interpolated between the chart's figures, in height and in temperature. The corrected altitude rounds up to the next 10 ft for an MDA/DA and to the next 100 ft for any other altitude. Above 5 000 ft the chart's 5 000 ft figure is used, plus the extra height at the rate between its 1 500 and 2 000 ft columns. The chart is in feet, so metres are converted.</li>
+        <li>TC Accurate (AC 500-020 §4.8) and TC Simplified (§4.7) allow for the aerodrome elevation and the chart does not, so they give smaller corrections at high aerodromes. TC Accurate is valid to 36 000 ft. TC Simplified is within 5% of it for aerodromes up to 10 000 ft and heights up to 5 000 ft above them.</li>
       </ul>
+      </details>
     </section>
   </div>
 
@@ -423,14 +427,10 @@ const fromFt = (v, u) => u === 'm' ? v * M : v;
 const toC = (t, u) => u === 'F' ? (t - 32) * 5 / 9 : t;
 const fromC = (t, u) => u === 'F' ? t * 9 / 5 + 32 : t;
 
-const KEY = 'tempAltCorrection.v2';
+const KEY = 'tempAltCorrection.v3';
 const defaults = {
-  altU: 'ft', tU: 'C', elev: '2262', temp: '-50', thr: 'isa', hss: '', method: 'capgen',
-  rows: [
-    { n: 'Procedure turn', a: '4000', m: false },
-    { n: 'FAF', a: '3300', m: false },
-    { n: 'MDA straight-in', a: '2840', m: true }
-  ],
+  altU: 'ft', tU: 'C', elev: '', temp: '', thr: 'isa', hss: '', method: 'capgen',
+  rows: [{ n: '', a: '', m: false }],
   edited: false
 };
 let state = JSON.parse(JSON.stringify(defaults));
@@ -567,7 +567,6 @@ function update() {
   const m = state.method;
   const elevIn = num(state.elev), tIn = num(state.temp);
   const pill = $('pill');
-  $('exampleTag').hidden = !!state.edited;
   $('thrField').hidden = m === 'capgen';
 
   const outs = Array.from($('rows').querySelectorAll('tr'));
@@ -597,8 +596,8 @@ function update() {
   if (m === 'capgen') {
     if (tC > 10) { pill.className = 'pill off'; pill.textContent = 'No correction · temperature is above +10 °C'; }
     else if (tC < -50) { pill.className = 'pill off'; pill.textContent = 'Colder than the CAP GEN chart (−50 °C)'; }
-    else if (tC > 0) { pill.className = 'pill on'; pill.textContent = 'CAP GEN chart · above 0 °C it applies from 1 000 ft above the source'; }
-    else { pill.className = 'pill on'; pill.textContent = 'CAP GEN chart · correction applied'; }
+    else if (tC > 0) { pill.className = 'pill on'; pill.textContent = 'CAP GEN · above 0 °C it applies from 1 000 ft above the source'; }
+    else { pill.className = 'pill on'; pill.textContent = 'CAP GEN · correction applied'; }
   } else {
     const where = state.thr === 'isa' ? 'ISA' : '0 °C';
     if (below) { pill.className = 'pill on'; pill.textContent = 'Correction applied · temperature is below ' + where; }
@@ -607,7 +606,7 @@ function update() {
 
   const ctx = { elevFt: elevFt, hssFt: hssFt, tC: tC, below: below, altU: state.altU };
   const sel = m === 'capgen' ? 'cap' : m === 'accurate' ? 'acc' : 'sim';
-  const names = { cap: 'CAP GEN', acc: '§4.8', sim: '§4.7' };
+  const names = { cap: 'CAP GEN', acc: 'TC Accurate', sim: 'TC Simplified' };
 
   outs.forEach((tr, i) => {
     const r = state.rows[i];
@@ -630,9 +629,9 @@ function update() {
     if (!Number.isFinite(corrFt)) {
       set('corr', '—'); set('final', '—');
       if (m === 'capgen') {
-        if (res.flags.indexOf('cold') >= 0) warns.add('Colder than −50 °C, the coldest temperature on the CAP GEN chart. Use the accurate method instead.');
+        if (res.flags.indexOf('cold') >= 0) warns.add('Colder than −50 °C, the coldest temperature on the CAP GEN chart. Use TC Accurate instead.');
       } else {
-        warns.add('The accurate method cannot be solved for an altitude this high. Check the values.');
+        warns.add('TC Accurate cannot be solved for an altitude this high. Check the values.');
       }
       return;
     }
@@ -646,8 +645,8 @@ function update() {
       if (res.flags.indexOf('high') >= 0) warns.add('An altitude is more than 5 000 ft above the source. The chart\'s 5 000 ft figure is used, plus the extra height at the rate between its 1 500 and 2 000 ft columns.');
     } else {
       fin = res.aIn + add;
-      if (m === 'accurate' && res.aFt > 36000) warns.add('The accurate method is valid to 36 000 ft (11 000 m).');
-      if (m === 'simplified' && below && (elevFt > 10000 || res.H > 5000)) warns.add('Outside the range where the simplified method is within 5% of the accurate method (aerodrome up to 10 000 ft, height up to 5 000 ft above it). Use the accurate method.');
+      if (m === 'accurate' && res.aFt > 36000) warns.add('TC Accurate is valid to 36 000 ft (11 000 m).');
+      if (m === 'simplified' && below && (elevFt > 10000 || res.H > 5000)) warns.add('Outside the range where TC Simplified is within 5% of TC Accurate (aerodrome up to 10 000 ft, height up to 5 000 ft above it). Use TC Accurate.');
     }
     set('final', fmtInt(fin));
   });
@@ -662,7 +661,7 @@ syncSegs(); loadFields(); update();
 <script>
 (function () {
   var el = document.getElementById('offlineStatus');
-  var CACHE = 'altcorr-v3', NEED = 6, done = false;
+  var CACHE = 'altcorr-v4', NEED = 6, done = false;
   function set(cls, txt) { el.className = 'pill ' + cls; el.textContent = txt; }
   function fail(txt) { if (!done) set('off', txt); }
 
