@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Temperature Altitude Correction</title>
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Altitude Correction">
+<style>
+  /* Layout: a conditions panel beside an editable altitude table; one column on phones.
+     Look: neutral grey instrument panel with a faint blue cast and one muted steel accent. Figures in mono. */
+  :root {
+    --paper: #DCDEE1;
+    --surface: #F4F5F6;
+    --field: #E8EAEC;
+    --ink: #1A1D21;
+    --muted: #5D646C;
+    --rule: #BDC1C6;
+    --accent: #485E73;
+    --accent-bg: #D3D9DF;
+    --accent-ink: #FFFFFF;
+    --warn: #A8321F;
+    --warn-bg: #F4DDD8;
+    --crit: #A8321F;
+    --f-display: 'Barlow Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
+    --f-body: 'Barlow', -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    --f-data: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #111315;
+      --surface: #1A1D20;
+      --field: #141618;
+      --ink: #E6E8EA;
+      --muted: #9AA1A8;
+      --rule: #2E3236;
+      --accent: #A5B6C7;
+      --accent-bg: #292F36;
+      --accent-ink: #101418;
+      --warn: #FF907B;
+      --warn-bg: #38211C;
+      --crit: #FF907B;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #111315;
+    --surface: #1A1D20;
+    --field: #141618;
+    --ink: #E6E8EA;
+    --muted: #9AA1A8;
+    --rule: #2E3236;
+    --accent: #A5B6C7;
+    --accent-bg: #292F36;
+    --accent-ink: #101418;
+    --warn: #FF907B;
+    --warn-bg: #38211C;
+    --crit: #FF907B;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 16px;
+    line-height: 1.45;
+    padding-block: 22px 44px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 20px; }
+
+  header { display: grid; gap: 6px; }
+  .eyebrow {
+    font-family: var(--f-display); font-weight: 500; font-size: 15px;
+    text-transform: uppercase; letter-spacing: .16em; color: var(--accent);
+  }
+  h1 {
+    font-family: var(--f-display); font-weight: 600; margin: 0;
+    font-size: clamp(32px, 5.4vw, 48px); line-height: 1.02; letter-spacing: .005em; text-wrap: balance;
+  }
+  .lede { margin: 0; max-width: 62ch; color: var(--muted); }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 350px) minmax(0, 1fr); gap: 20px; align-items: start; }
+  @media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+  .panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 18px; min-width: 0; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  h2 {
+    font-family: var(--f-display); font-weight: 600; font-size: 22px; margin: 0;
+    text-transform: uppercase; letter-spacing: .06em;
+  }
+  .tag {
+    font-family: var(--f-display); font-weight: 500; font-size: 14px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--accent); background: var(--accent-bg); padding: 3px 10px; border-radius: 3px;
+  }
+
+  .field { display: grid; gap: 6px; margin-bottom: 16px; min-width: 0; }
+  .lbl {
+    font-family: var(--f-display); font-weight: 500; font-size: 15px;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+  }
+  .inwrap { display: flex; align-items: stretch; gap: 8px; min-width: 0; }
+  .numin, .cell-in {
+    min-width: 0; height: 48px; border: 1px solid var(--rule); border-radius: 4px;
+    background: var(--field); color: var(--ink); padding: 0 12px;
+    font-family: var(--f-data); font-weight: 500; font-size: 20px; font-variant-numeric: tabular-nums;
+  }
+  .numin { flex: 1; }
+  .unit { display: flex; align-items: center; min-width: 30px; color: var(--muted); font-family: var(--f-data); font-size: 16px; }
+  input::placeholder { color: var(--muted); opacity: .8; font-family: var(--f-body); font-size: 16px; }
+
+  .seg { display: flex; border: 1px solid var(--rule); border-radius: 5px; overflow: hidden; background: var(--field); }
+  .seg button {
+    flex: 1; min-height: 46px; padding: 0 12px; border: 0; background: transparent; color: var(--ink);
+    font-family: var(--f-body); font-weight: 600; font-size: 16px; cursor: pointer;
+  }
+  .seg button + button { border-left: 1px solid var(--rule); }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+
+  .sign {
+    width: 56px; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); color: var(--ink);
+    font-family: var(--f-data); font-weight: 600; font-size: 22px; cursor: pointer;
+  }
+
+  button:focus-visible, input:focus-visible, summary:focus-visible {
+    outline: 3px solid var(--accent); outline-offset: 2px;
+  }
+
+  .readout {
+    margin: 0 0 16px; padding: 12px; border: 1px dashed var(--rule); border-radius: 4px;
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;
+  }
+  .readout div { min-width: 0; }
+  .readout dt { font-family: var(--f-display); font-weight: 500; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .readout dd { margin: 2px 0 0; font-family: var(--f-data); font-weight: 600; font-size: 17px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+  details { border-top: 1px solid var(--rule); padding-top: 4px; }
+  summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
+  details .field { margin: 6px 0 0; }
+
+  .status { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 14px 0; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px;
+    font-weight: 600; font-size: 15px; background: var(--field); color: var(--ink); border: 1px solid var(--rule);
+  }
+  .pill::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+  .pill.on { background: var(--accent-bg); color: var(--accent); border-color: transparent; }
+  .pill.on::before { background: var(--accent); }
+  .pill.off { background: var(--field); color: var(--ink); }
+
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 680px; }
+  th {
+    font-family: var(--f-display); font-weight: 500; font-size: 14px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted); text-align: left; padding: 8px; border-bottom: 2px solid var(--ink); white-space: nowrap;
+  }
+  th.num, td.num { text-align: right; }
+  td { padding: 8px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+  .cell-in { width: 100%; height: 46px; font-size: 18px; }
+  .cell-in.name { font-family: var(--f-body); font-weight: 500; }
+  .cell-in.alt { text-align: right; }
+  .corr { font-family: var(--f-data); font-weight: 500; font-size: 18px; color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .final { font-family: var(--f-data); font-weight: 600; font-size: 26px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .other { font-family: var(--f-data); font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .del {
+    width: 44px; height: 44px; border: 1px solid transparent; border-radius: 4px; background: transparent;
+    color: var(--muted); font-size: 22px; cursor: pointer;
+  }
+  .del:hover { color: var(--crit); border-color: var(--rule); }
+
+  .add {
+    margin-top: 14px; min-height: 46px; padding: 0 18px; border: 1px solid var(--accent); border-radius: 4px;
+    background: transparent; color: var(--accent); font-family: var(--f-body); font-weight: 600; font-size: 16px; cursor: pointer;
+  }
+  .empty { padding: 18px 8px; color: var(--muted); }
+
+  .warn { display: grid; gap: 8px; margin-top: 14px; }
+  .warn p { margin: 0; padding: 10px 12px; border-radius: 4px; background: var(--warn-bg); color: var(--warn); font-weight: 500; }
+
+  .notes { margin: 18px 0 0; padding: 14px 0 0; border-top: 1px solid var(--rule); display: grid; gap: 8px; color: var(--muted); font-size: 15px; max-width: 70ch; list-style: none; }
+  .foot { color: var(--muted); font-size: 14px; max-width: 80ch; margin: 0; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  /* standalone page reset */
+  :root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  body { margin: 0; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Transport Canada AC 500-020 · Issue 04</div>
+    <h1>Temperature altitude correction</h1>
+    <p class="lede">Adds the cold-temperature correction to published minimum IFR altitudes, using the simplified method (§4.7) and the accurate method (§4.8).</p>
+  </header>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="h-cond">
+      <div class="panel-head"><h2 id="h-cond">Aerodrome conditions</h2></div>
+
+      <div class="field">
+        <span class="lbl" id="l-altU">Altitude units</span>
+        <div class="seg" role="group" aria-labelledby="l-altU" data-seg="altU">
+          <button type="button" data-v="ft">Feet</button>
+          <button type="button" data-v="m">Metres</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="lbl" id="l-tU">Temperature units</span>
+        <div class="seg" role="group" aria-labelledby="l-tU" data-seg="tU">
+          <button type="button" data-v="C">°C</button>
+          <button type="button" data-v="F">°F</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="lbl" for="elev">Aerodrome elevation</label>
+        <div class="inwrap">
+          <input id="elev" class="numin" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 1000">
+          <span class="unit" data-unit="alt"></span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="lbl" for="temp">Aerodrome temperature</label>
+        <div class="inwrap">
+          <button type="button" class="sign" id="signBtn" aria-label="Change the sign of the temperature">±</button>
+          <input id="temp" class="numin" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. -20">
+          <span class="unit" data-unit="temp"></span>
+        </div>
+      </div>
+
+      <dl class="readout" id="readout" aria-live="polite">
+        <div><dt>Entered</dt><dd id="r-entered">—</dd></div>
+        <div><dt>ISA here</dt><dd id="r-isa">—</dd></div>
+        <div><dt>Deviation</dt><dd id="r-dev">—</dd></div>
+      </dl>
+
+      <div class="field">
+        <span class="lbl" id="l-thr">Apply correction when</span>
+        <div class="seg" role="group" aria-labelledby="l-thr" data-seg="thr">
+          <button type="button" data-v="isa">Below ISA</button>
+          <button type="button" data-v="zero">Below 0 °C</button>
+        </div>
+      </div>
+
+      <details>
+        <summary>Altimeter setting source elevation</summary>
+        <div class="field">
+          <div class="inwrap">
+            <input id="hss" class="numin" type="text" inputmode="decimal" autocomplete="off" placeholder="Same as aerodrome" aria-label="Altimeter setting source elevation">
+            <span class="unit" data-unit="alt"></span>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section class="panel" aria-labelledby="h-alt">
+      <div class="panel-head">
+        <h2 id="h-alt">Published altitudes</h2>
+        <span class="tag" id="exampleTag">Example values</span>
+      </div>
+
+      <div class="field" style="margin-bottom:0">
+        <span class="lbl" id="l-method">Method</span>
+        <div class="seg" role="group" aria-labelledby="l-method" data-seg="method">
+          <button type="button" data-v="accurate">Accurate §4.8</button>
+          <button type="button" data-v="simplified">Simplified §4.7</button>
+        </div>
+      </div>
+
+      <div class="status"><span class="pill" id="pill">Enter elevation and temperature</span></div>
+
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fix or step</th>
+              <th class="num">Published <span data-unit="alt"></span></th>
+              <th class="num">Add</th>
+              <th class="num">Corrected</th>
+              <th class="num" id="th-other">Other method</th>
+              <th><span class="sr" style="position:absolute;left:-9999px">Remove</span></th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="empty" hidden>No altitudes yet. Add the minimum altitudes from your approach chart.</div>
+
+      <button type="button" class="add" id="addRow">Add altitude</button>
+
+      <div class="warn" id="warn" aria-live="polite"></div>
+
+      <ul class="notes">
+        <li>Add the correction to the published minimum IFR altitude. Do not add it to an altitude assigned by ATC (§4.4).</li>
+        <li>Published altitudes are entered as MSL. The correction is worked out on the height above the altimeter setting source, which is the aerodrome unless you set another elevation.</li>
+        <li>Accurate is the iterative method and is valid to 36 000 ft. Simplified is within 5% of it for aerodrome elevations up to 10 000 ft and heights up to 5 000 ft above the aerodrome. Aerodrome pressure height is taken as the aerodrome elevation.</li>
+      </ul>
+    </section>
+  </div>
+
+  <p class="foot">Planning aid built from AC 500-020 Issue 04, which is guidance for FMS designs. For operations, use the approach chart, CAP GEN and TP 14371.</p>
+</div>
+
+<script>
+// ---- calc:start
+const L0 = 0.0019812; // ISA lapse rate, °C per ft (0.0065 °C/m)
+function simplifiedCorrection(Hft, tC, elevFt, hssFt) {
+  const t0 = tC + L0 * elevFt;
+  return Hft * ((15 - t0) / (273 + t0 - 0.5 * L0 * (Hft + hssFt)));
+}
+function accurateCorrection(Hft, tC, elevFt) {
+  const dt = (tC + L0 * elevFt) - 15;
+  const denom = 273 + 15 - L0 * elevFt;
+  let c = 0;
+  for (let i = 0; i < 100; i++) {
+    const arg = 1 - L0 * (Hft + c) / denom;
+    if (!(arg > 0)) return NaN;
+    const next = (dt / L0) * Math.log(arg);
+    if (Math.abs(next - c) < 0.001) { c = next; break; }
+    c = next;
+  }
+  return c;
+}
+// ---- calc:end
+
+const M = 0.3048;
+const toFt = (v, u) => u === 'm' ? v / M : v;
+const fromFt = (v, u) => u === 'm' ? v * M : v;
+const toC = (t, u) => u === 'F' ? (t - 32) * 5 / 9 : t;
+const fromC = (t, u) => u === 'F' ? t * 9 / 5 + 32 : t;
+
+const KEY = 'tempAltCorrection.v1';
+const defaults = {
+  altU: 'ft', tU: 'C', elev: '1000', temp: '-20', thr: 'isa', hss: '', method: 'accurate',
+  rows: [{ n: 'FAF', a: '3500' }, { n: 'Step-down fix', a: '2600' }, { n: 'MDA', a: '1840' }],
+  edited: false
+};
+let state = JSON.parse(JSON.stringify(defaults));
+try {
+  const s = JSON.parse(localStorage.getItem(KEY));
+  if (s && typeof s === 'object' && Array.isArray(s.rows)) {
+    state = Object.assign(state, s);
+    state.rows = state.rows.map(r => ({ n: String(r.n || ''), a: String(r.a || '') }));
+  }
+} catch (e) {}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+const $ = id => document.getElementById(id);
+const num = s => {
+  const x = parseFloat(String(s).replace('−', '-').replace(',', '.'));
+  return Number.isFinite(x) ? x : null;
+};
+const MINUS = '−';
+const nf = new Intl.NumberFormat('en-CA', { maximumFractionDigits: 0 });
+const fmtInt = n => nf.format(Math.round(n)).replace('-', MINUS).replace(/ /g, ' ');
+const fmtDec = (n, d) => (n < 0 ? MINUS : '') + Math.abs(n).toFixed(d);
+const fmtSigned = n => n > 0 ? '+' + fmtInt(n) : fmtInt(n);
+
+function syncSegs() {
+  document.querySelectorAll('[data-seg]').forEach(g => {
+    const k = g.dataset.seg;
+    g.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(state[k] === b.dataset.v)));
+  });
+  document.querySelectorAll('[data-unit="alt"]').forEach(e => e.textContent = state.altU);
+  document.querySelectorAll('[data-unit="temp"]').forEach(e => e.textContent = '°' + state.tU);
+}
+
+function convertUnits(key, from, to) {
+  if (key === 'altU') {
+    const conv = s => { const v = num(s); return v === null ? s : String(Math.round(fromFt(toFt(v, from), to))); };
+    state.elev = conv(state.elev);
+    state.hss = conv(state.hss);
+    state.rows.forEach(r => r.a = conv(r.a));
+  } else {
+    const v = num(state.temp);
+    if (v !== null) state.temp = String(Math.round(fromC(toC(v, from), to) * 10) / 10);
+  }
+}
+
+document.querySelectorAll('[data-seg] button').forEach(b => {
+  b.addEventListener('click', () => {
+    const k = b.closest('[data-seg]').dataset.seg;
+    const v = b.dataset.v;
+    if (state[k] === v) return;
+    const prev = state[k];
+    state[k] = v;
+    if (k === 'altU' || k === 'tU') { convertUnits(k, prev, v); loadFields(); }
+    state.edited = true;
+    syncSegs(); update();
+  });
+});
+
+function loadFields() {
+  $('elev').value = state.elev;
+  $('temp').value = state.temp;
+  $('hss').value = state.hss;
+  renderRows();
+}
+
+['elev', 'temp', 'hss'].forEach(id => {
+  $(id).addEventListener('input', e => { state[id] = e.target.value; state.edited = true; update(); });
+});
+$('signBtn').addEventListener('click', () => {
+  let v = $('temp').value.trim().replace('−', '-');
+  v = v.startsWith('-') ? v.slice(1) : '-' + v;
+  $('temp').value = v; state.temp = v; state.edited = true; update();
+});
+
+function renderRows() {
+  const tb = $('rows');
+  tb.innerHTML = '';
+  state.rows.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input class="cell-in name" data-i="' + i + '" data-k="n" type="text" autocomplete="off" aria-label="Name of altitude ' + (i + 1) + '" placeholder="Name"></td>' +
+      '<td class="num"><input class="cell-in alt" data-i="' + i + '" data-k="a" type="text" inputmode="decimal" autocomplete="off" aria-label="Published altitude ' + (i + 1) + '" placeholder="0"></td>' +
+      '<td class="num"><span class="corr" data-out="corr">—</span></td>' +
+      '<td class="num"><span class="final" data-out="final">—</span></td>' +
+      '<td class="num"><span class="other" data-out="other">—</span></td>' +
+      '<td><button type="button" class="del" data-del="' + i + '" aria-label="Remove altitude ' + (i + 1) + '">×</button></td>';
+    tr.querySelector('[data-k="n"]').value = r.n;
+    tr.querySelector('[data-k="a"]').value = r.a;
+    tb.appendChild(tr);
+  });
+  $('empty').hidden = state.rows.length > 0;
+}
+$('rows').addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset && t.dataset.i !== undefined) {
+    state.rows[+t.dataset.i][t.dataset.k] = t.value;
+    state.edited = true; update();
+  }
+});
+$('rows').addEventListener('click', e => {
+  const b = e.target.closest('[data-del]');
+  if (!b) return;
+  state.rows.splice(+b.dataset.del, 1);
+  state.edited = true; renderRows(); update();
+});
+$('addRow').addEventListener('click', () => {
+  state.rows.push({ n: '', a: '' });
+  state.edited = true; renderRows(); update();
+  const ins = $('rows').querySelectorAll('[data-k="n"]');
+  if (ins.length) ins[ins.length - 1].focus();
+});
+
+function update() {
+  const warns = new Set();
+  const elevIn = num(state.elev), tIn = num(state.temp);
+  const pill = $('pill');
+  $('exampleTag').hidden = !!state.edited;
+
+  const outs = Array.from($('rows').querySelectorAll('tr'));
+  const clearRows = () => outs.forEach(tr => tr.querySelectorAll('[data-out]').forEach(s => s.textContent = '—'));
+
+  if (elevIn === null || tIn === null) {
+    $('r-entered').textContent = tIn === null ? '—' : fmtDec(tIn, 1).replace(/\.0$/, '') + ' °' + state.tU;
+    $('r-isa').textContent = '—'; $('r-dev').textContent = '—';
+    pill.className = 'pill'; pill.textContent = 'Enter elevation and temperature';
+    clearRows(); $('warn').innerHTML = ''; save(); return;
+  }
+
+  const elevFt = toFt(elevIn, state.altU);
+  const tC = toC(tIn, state.tU);
+  const hssIn = num(state.hss);
+  const hssFt = hssIn === null ? elevFt : toFt(hssIn, state.altU);
+  const isaC = 15 - L0 * elevFt;
+  const devC = tC - isaC;
+  const below = state.thr === 'isa' ? tC < isaC : tC < 0;
+
+  const dispT = n => fmtDec(n, 1).replace(/\.0$/, '');
+  $('r-entered').textContent = dispT(tIn) + ' °' + state.tU;
+  $('r-isa').textContent = dispT(fromC(isaC, state.tU)) + ' °' + state.tU;
+  const devDisp = state.tU === 'F' ? devC * 9 / 5 : devC;
+  $('r-dev').textContent = (devDisp > 0 ? '+' : '') + dispT(devDisp) + '°';
+
+  const where = state.thr === 'isa' ? 'ISA' : '0 °C';
+  if (below) { pill.className = 'pill on'; pill.textContent = 'Correction applied · temperature is below ' + where; }
+  else { pill.className = 'pill off'; pill.textContent = 'No correction · temperature is not below ' + where; }
+
+  const acc = state.method === 'accurate';
+  $('th-other').textContent = acc ? 'Simplified' : 'Accurate';
+
+  outs.forEach((tr, i) => {
+    const r = state.rows[i];
+    const set = (k, v) => tr.querySelector('[data-out="' + k + '"]').textContent = v;
+    const aIn = num(r.a);
+    if (aIn === null) { set('corr', '—'); set('final', '—'); set('other', '—'); return; }
+    const aFt = toFt(aIn, state.altU);
+    const H = aFt - hssFt;
+    if (H <= 0) {
+      set('corr', '0'); set('final', fmtInt(aIn)); set('other', '—');
+      warns.add('An altitude is at or below the altimeter setting source elevation, so no correction is added to it.');
+      return;
+    }
+    if (!below) { set('corr', '0'); set('final', fmtInt(aIn)); set('other', '0'); }
+    else {
+      const s = simplifiedCorrection(H, tC, elevFt, hssFt);
+      const c = accurateCorrection(H, tC, elevFt);
+      const chosen = acc ? c : s, other = acc ? s : c;
+      if (!Number.isFinite(chosen)) {
+        set('corr', '—'); set('final', '—'); set('other', '—');
+        warns.add('The accurate method cannot be solved for an altitude this high. Check the values.');
+        return;
+      }
+      const corrD = Math.round(fromFt(chosen, state.altU));
+      set('corr', fmtSigned(corrD));
+      set('final', fmtInt(aIn + corrD));
+      set('other', Number.isFinite(other) ? fmtSigned(Math.round(fromFt(other, state.altU))) : '—');
+    }
+    if (acc && aFt > 36000) warns.add('The accurate method is valid to 36 000 ft (11 000 m).');
+    if (!acc && (elevFt > 10000 || H > 5000)) warns.add('Outside the range where the simplified method is within 5% of the accurate method (aerodrome up to 10 000 ft, height up to 5 000 ft above it). Use the accurate method.');
+  });
+
+  $('warn').innerHTML = '';
+  warns.forEach(w => { const p = document.createElement('p'); p.textContent = w; $('warn').appendChild(p); });
+  save();
+}
+
+syncSegs(); loadFields(); update();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
