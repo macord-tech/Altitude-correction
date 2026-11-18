@@ -20,8 +20,9 @@
     --ink: #1A1D21;
     --muted: #5D646C;
     --rule: #BDC1C6;
-    --accent: #485E73;
-    --accent-bg: #D3D9DF;
+    --accent: #1F5FA8;
+    --accent-bg: #DCE7F3;
+    --ice: #4A90D9;
     --accent-ink: #FFFFFF;
     --warn: #A8321F;
     --warn-bg: #F4DDD8;
@@ -38,8 +39,9 @@
       --ink: #E6E8EA;
       --muted: #9AA1A8;
       --rule: #2E3236;
-      --accent: #A5B6C7;
-      --accent-bg: #292F36;
+      --accent: #6FB4FF;
+      --accent-bg: #1C2836;
+      --ice: #6FB4FF;
       --accent-ink: #101418;
       --warn: #FF907B;
       --warn-bg: #38211C;
@@ -54,8 +56,9 @@
     --ink: #E6E8EA;
     --muted: #9AA1A8;
     --rule: #2E3236;
-    --accent: #A5B6C7;
-    --accent-bg: #292F36;
+    --accent: #6FB4FF;
+    --accent-bg: #1C2836;
+    --ice: #6FB4FF;
     --accent-ink: #101418;
     --warn: #FF907B;
     --warn-bg: #38211C;
@@ -232,6 +235,45 @@
     .cell-in.name { min-width: 0; }
   }
 
+
+  /* style layer (matches SCDA Calc) */
+  body { background: radial-gradient(1200px 500px at 85% -10%, var(--accent-bg), transparent 70%), var(--paper); background-attachment: fixed; }
+  header { padding: 14px 16px; border: 1px solid var(--rule); border-bottom: 3px solid var(--accent); border-radius: 8px; background: linear-gradient(110deg, var(--surface), var(--accent-bg)); animation: rise .45s ease both; }
+  .hdr-main { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 14px; }
+  .hdr-main h1 { flex: 0 1 auto; }
+  h1 { background: linear-gradient(100deg, var(--ink) 40%, var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .flake { flex: none; width: clamp(34px, 5vw, 48px); height: clamp(34px, 5vw, 48px); color: var(--ice); filter: drop-shadow(0 0 6px rgba(74, 144, 217, .45)); animation: fade .5s .2s both, spin 14s linear infinite; }
+  .flake line { stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+  .panel { border-top: 4px solid var(--accent); box-shadow: 0 6px 18px rgba(15, 20, 26, .10); animation: rise .5s ease both; transition: border-color .4s ease, box-shadow .4s ease, background-color .4s ease; }
+  .wrap .grid > .panel:nth-child(2) { animation-delay: .08s; }
+  h2 { display: flex; align-items: center; gap: 10px; }
+  h2::before { content: ""; width: 6px; height: 1em; border-radius: 3px; background: var(--accent); }
+  #altPanel.cold-on { border-top-color: var(--ice); box-shadow: 0 6px 22px rgba(74, 144, 217, .28); background-image: linear-gradient(180deg, rgba(74, 144, 217, .14), transparent 140px); }
+  #altPanel.cold-on h2::after { content: "\2744\FE0E"; color: var(--ice); font-size: .9em; display: inline-block; animation: spin 7s linear infinite; }
+  .readout { border: 0; padding: 0; }
+  .readout > div { background: var(--surface); border: 1px solid var(--rule); border-left: 4px solid var(--accent); border-radius: 6px; padding: 8px 10px; transition: transform .15s ease, box-shadow .15s ease; }
+  .readout > div:hover { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(15, 20, 26, .14); }
+  .readout > div:last-child { border-left-color: var(--ice); }
+  .final { color: var(--accent); }
+  .seg button, .add, .theme-btn, .sign { transition: background-color .18s ease, color .18s ease, transform .12s ease, box-shadow .18s ease; }
+  .seg button:active, .add:active, .theme-btn:active, .sign:active { transform: scale(.96); }
+  .add:not(:disabled):hover, .theme-btn:hover { background: var(--accent); color: var(--accent-ink); }
+  .seg button[aria-pressed="true"] { box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .25); }
+  .pill.on::before { animation: pulse 1.8s ease-in-out infinite; }
+  .numin:focus, .cell-in:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+  #rows tr { transition: background-color .15s ease; animation: rise .4s ease both; }
+  #rows tr:hover { background: var(--accent-bg); }
+  .foot.disclaimer { padding: 10px 12px; border: 1px solid var(--rule); border-left: 4px solid var(--warn); border-radius: 6px; background: var(--surface); color: var(--ink); }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent); } 50% { box-shadow: 0 0 0 5px transparent; } }
+  @media print {
+    header { background: none !important; border: 0; animation: none; }
+    h1 { background: none !important; color: #000 !important; }
+    .flake { color: #000; filter: none; animation: none; }
+    .panel, .readout > div { box-shadow: none !important; animation: none !important; background-image: none !important; }
+  }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
   /* standalone page reset */
   :root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
@@ -244,7 +286,7 @@
 
 <div class="wrap">
   <header>
-    <h1>Cold Weather Altitude Correction</h1>
+    <div class="hdr-main"><svg class="flake" viewBox="0 0 48 48" aria-hidden="true"><g transform="translate(24 24)"><g transform="rotate(0)"><line x1="0" y1="0" x2="0" y2="-20"/><line x1="0" y1="-13" x2="-5" y2="-18"/><line x1="0" y1="-13" x2="5" y2="-18"/><line x1="0" y1="-7" x2="-3.5" y2="-10.5"/><line x1="0" y1="-7" x2="3.5" y2="-10.5"/></g><g transform="rotate(60)"><line x1="0" y1="0" x2="0" y2="-20"/><line x1="0" y1="-13" x2="-5" y2="-18"/><line x1="0" y1="-13" x2="5" y2="-18"/><line x1="0" y1="-7" x2="-3.5" y2="-10.5"/><line x1="0" y1="-7" x2="3.5" y2="-10.5"/></g><g transform="rotate(120)"><line x1="0" y1="0" x2="0" y2="-20"/><line x1="0" y1="-13" x2="-5" y2="-18"/><line x1="0" y1="-13" x2="5" y2="-18"/><line x1="0" y1="-7" x2="-3.5" y2="-10.5"/><line x1="0" y1="-7" x2="3.5" y2="-10.5"/></g><g transform="rotate(180)"><line x1="0" y1="0" x2="0" y2="-20"/><line x1="0" y1="-13" x2="-5" y2="-18"/><line x1="0" y1="-13" x2="5" y2="-18"/><line x1="0" y1="-7" x2="-3.5" y2="-10.5"/><line x1="0" y1="-7" x2="3.5" y2="-10.5"/></g><g transform="rotate(240)"><line x1="0" y1="0" x2="0" y2="-20"/><line x1="0" y1="-13" x2="-5" y2="-18"/><line x1="0" y1="-13" x2="5" y2="-18"/><line x1="0" y1="-7" x2="-3.5" y2="-10.5"/><line x1="0" y1="-7" x2="3.5" y2="-10.5"/></g><g transform="rotate(300)"><line x1="0" y1="0" x2="0" y2="-20"/><line x1="0" y1="-13" x2="-5" y2="-18"/><line x1="0" y1="-13" x2="5" y2="-18"/><line x1="0" y1="-7" x2="-3.5" y2="-10.5"/><line x1="0" y1="-7" x2="3.5" y2="-10.5"/></g></g></svg><h1>Cold Weather Altitude Correction</h1></div>
     <button type="button" class="theme-btn" id="themeBtn" aria-label="Switch between dark and light theme">Light</button>
     <div style="flex-basis:100%"><span class="pill" id="offlineStatus">Checking offline storage…</span></div>
   </header>
@@ -311,7 +353,7 @@
       </details>
     </section>
 
-    <section class="panel" aria-labelledby="h-alt">
+    <section class="panel" id="altPanel" aria-labelledby="h-alt">
       <div class="panel-head">
         <h2 id="h-alt">Published altitudes</h2>
       </div>
@@ -368,6 +410,7 @@
   </div>
 
   <p class="foot">Planning aid built from the CAP GEN altitude correction chart and AC 500-020 Issue 04, which is guidance for FMS designs. For operations, use the approach chart, CAP GEN and TP 14371.</p>
+  <p class="foot disclaimer"><strong>Disclaimer:</strong> The developer is not liable for errors, incidents or accidents that may arise from the use of this application. The pilot in command remains responsible for verifying all figures against approved sources.</p>
 </div>
 
 <script>
@@ -603,7 +646,7 @@ function update() {
   if (elevIn === null || tIn === null) {
     $('r-entered').textContent = tIn === null ? '—' : fmtDec(tIn, 1).replace(/\.0$/, '') + ' °' + state.tU;
     $('r-isa').textContent = '—'; $('r-dev').textContent = '—';
-    pill.className = 'pill'; pill.textContent = 'Enter elevation and temperature';
+    pill.className = 'pill'; pill.textContent = 'Enter elevation and temperature'; $('altPanel').classList.remove('cold-on');
     clearRows(); $('warn').innerHTML = ''; setExport(false); save(); return;
   }
 
@@ -632,6 +675,7 @@ function update() {
     else { pill.className = 'pill off'; pill.textContent = 'No correction · temperature is not below ' + where; }
   }
 
+  $('altPanel').classList.toggle('cold-on', pill.classList.contains('on'));
   const ctx = { elevFt: elevFt, hssFt: hssFt, tC: tC, below: below, altU: state.altU };
   const sel = m === 'capgen' ? 'cap' : m === 'accurate' ? 'acc' : 'sim';
   const names = { cap: 'CAP GEN', acc: 'TC Accurate', sim: 'TC Simplified' };
@@ -724,6 +768,8 @@ function buildReport() {
   L.push('');
   L.push('Planning aid built from the CAP GEN altitude correction chart and AC 500-020 Issue 04.');
   L.push('For operations, use the approach chart, CAP GEN and TP 14371.');
+  L.push('');
+  L.push('Disclaimer: The developer is not liable for errors, incidents or accidents that may arise from the use of this application. The pilot in command remains responsible for verifying all figures against approved sources.');
   return L.join('\r\n') + '\r\n';
 }
 
@@ -786,7 +832,7 @@ syncSegs(); loadFields(); update();
 <script>
 (function () {
   var el = document.getElementById('offlineStatus');
-  var CACHE = 'altcorr-v4', NEED = 6, done = false;
+  var CACHE = 'altcorr-v5', NEED = 6, done = false;
   function set(cls, txt) { el.className = 'pill ' + cls; el.textContent = txt; }
   function fail(txt) { if (!done) set('off', txt); }
 

@@ -1,6 +1,6 @@
 // Saves the app so it opens with no connection.
 // When online it always fetches the newest files first; the saved copy is used only when there is no connection.
-const CACHE = 'altcorr-v4';
+const CACHE = 'altcorr-v5';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', function (e) {
