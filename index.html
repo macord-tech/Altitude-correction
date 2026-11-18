@@ -14,12 +14,12 @@
   /* Layout: a conditions panel beside an editable altitude table; one column on phones.
      Look: neutral grey instrument panel with a faint blue cast and one muted steel accent. Figures in mono. */
   :root {
-    --paper: #DCDEE1;
-    --surface: #F4F5F6;
-    --field: #E8EAEC;
+    --paper: #CDD1D6;
+    --surface: #E4E7EA;
+    --field: #D6DADF;
     --ink: #1A1D21;
     --muted: #5D646C;
-    --rule: #BDC1C6;
+    --rule: #ADB3BA;
     --accent: #1F5FA8;
     --accent-bg: #DCE7F3;
     --ice: #4A90D9;
@@ -832,7 +832,7 @@ syncSegs(); loadFields(); update();
 <script>
 (function () {
   var el = document.getElementById('offlineStatus');
-  var CACHE = 'altcorr-v5', NEED = 6, done = false;
+  var CACHE = 'altcorr-v6', NEED = 6, done = false;
   function set(cls, txt) { el.className = 'pill ' + cls; el.textContent = txt; }
   function fail(txt) { if (!done) set('off', txt); }
 
